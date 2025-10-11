@@ -27,9 +27,10 @@ services:
       context: .
       dockerfile: ./store/Dockerfile
     container_name: legal-mcp-store-api
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://legal_mcp:legal_mcp_password@postgres:5432/legal_mcp_db
-      - OLLAMA_HOST=http://host.docker.internal:11434
+      - DATABASE_URL=postgresql+asyncpg://legal_mcp:legal_mcp_password@${POSTGRES_HOST:-postgres}:5432/legal_mcp_db
     ports:
       - "8000:8000"
     depends_on:

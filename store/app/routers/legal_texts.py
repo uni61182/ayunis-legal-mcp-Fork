@@ -323,12 +323,11 @@ async def semantic_search_legal_texts(
         embedding_service: Embedding service (injected)
 
     Returns:
-        Search results with similarity scores
+        Search results with similarity scores (empty array if no results match the cutoff threshold)
 
     Raises:
         HTTPException:
             - 400: If query is invalid
-            - 404: If no texts found for the specified code
             - 500: If embedding generation or search fails
     """
     try:
@@ -356,12 +355,6 @@ async def semantic_search_legal_texts(
             limit=limit,
             cutoff=cutoff,
         )
-
-        if not search_results:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No legal texts found for code: {code}. Import the code first using POST /legal-texts/gesetze-im-internet/{code}",
-            )
 
         # Step 3: Convert to response models
         results: List[LegalTextSearchResult] = []
