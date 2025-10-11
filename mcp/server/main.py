@@ -24,7 +24,7 @@ mcp = FastMCP(
 )
 
 # Configuration for the legal texts API
-API_BASE_URL = os.getenv("LEGAL_API_BASE_URL", "http://localhost:8000")
+API_BASE_URL = os.getenv("LEGAL_API_BASE_URL", "legal-mcp-store-api:8000")
 
 
 class LegalTextResult(BaseModel):
@@ -182,60 +182,6 @@ async def import_legal_code(
     except Exception as e:
         logger.error(f"Error importing legal code: {e}")
         raise RuntimeError(f"Error importing legal code: {str(e)}")
-
-
-@mcp.resource("legal://codes/available")
-def list_available_codes() -> str:
-    """
-    List available German legal codes that can be queried.
-    
-    Returns:
-        Formatted list of available legal codes with descriptions
-    """
-    codes = {
-        "bgb": "Bürgerliches Gesetzbuch (German Civil Code)",
-        "stgb": "Strafgesetzbuch (German Criminal Code)",
-        "gg": "Grundgesetz (German Constitution)",
-        "hgb": "Handelsgesetzbuch (German Commercial Code)",
-        "zpo": "Zivilprozessordnung (Code of Civil Procedure)",
-        "stpo": "Strafprozessordnung (Code of Criminal Procedure)",
-    }
-    
-    result = "Available German Legal Codes:\n\n"
-    for code, description in codes.items():
-        result += f"• {code.upper()}: {description}\n"
-    
-    return result
-
-
-@mcp.resource("legal://server/info")
-def server_info() -> str:
-    """
-    Get information about the Legal MCP server.
-    
-    Returns:
-        Server information and usage instructions
-    """
-    return """
-Legal MCP Server
-
-This server provides tools for querying and analyzing German legal texts
-from the Gesetze im Internet database.
-
-Tools:
-• search_legal_texts: Semantic search across legal codes
-• get_legal_section: Retrieve specific legal sections
-• import_legal_code: Import legal codes into the database
-
-Resources:
-• legal://codes/available: List of available legal codes
-• legal://server/info: This information
-
-To get started, use import_legal_code to load a legal code (e.g., 'bgb'),
-then use search_legal_texts or get_legal_section to query it.
-
-API Base URL: {API_BASE_URL}
-"""
 
 
 # For running with the FastMCP CLI or directly
