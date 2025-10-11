@@ -7,7 +7,11 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, ValidationError
 
-from app.scrapers import GesetzteImInternetScraper
+from app.scrapers import (
+    GesetzteImInternetScraper,
+    GesetzteImInternetCatalog,
+    CatalogFetchError,
+)
 from app.repository import LegalTextRepository, LegalTextFilter
 from app.embedding import EmbeddingService
 from app.models import LegalTextDB
@@ -83,6 +87,23 @@ class AvailableCodesResponse(BaseModel):
     codes: List[str]
 
 
+class LegalCodeCatalogEntryResponse(BaseModel):
+    """Response model for a single catalog entry"""
+
+    code: str = Field(description="Legal code identifier (e.g., 'bgb', 'stgb')")
+    title: str = Field(description="Full title of the legal text")
+    url: str = Field(description="URL to the XML zip file")
+
+
+class CatalogResponse(BaseModel):
+    """Response model for the catalog of importable legal codes"""
+
+    count: int = Field(description="Total number of codes available for import")
+    entries: List[LegalCodeCatalogEntryResponse] = Field(
+        description="List of importable legal codes"
+    )
+
+
 @router.post("/gesetze-im-internet/{book}", response_model=LegalTextImportResponse)
 async def import_legal_text(
     book: str,
@@ -111,6 +132,21 @@ async def import_legal_text(
     """
     try:
         logger.info(f"Starting import for legal code: {book}")
+
+        # Validation: Check if code exists in catalog
+        catalog_service = GesetzteImInternetCatalog()
+        try:
+            if not catalog_service.is_valid_code(book):
+                logger.warning(f"Code {book} not found in catalog")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid legal code: {book}. Use /catalog endpoint to see available codes.",
+                )
+        except CatalogFetchError as catalog_error:
+            # Graceful degradation: if catalog fetch fails, log and continue
+            logger.warning(
+                f"Could not validate code against catalog: {str(catalog_error)}. Proceeding with import attempt."
+            )
 
         # Step 1: Scrape the legal texts
         scraper = GesetzteImInternetScraper()
@@ -204,6 +240,47 @@ async def get_available_codes(
         raise HTTPException(
             status_code=500, detail=f"Error fetching available codes: {str(e)}"
         )
+
+
+@router.get("/gesetze-im-internet/catalog", response_model=CatalogResponse)
+async def get_importable_catalog():
+    """
+    Get the catalog of all legal codes available for import from Gesetze im Internet
+
+    This endpoint returns the complete list of legal codes that can be imported
+    from the Gesetze im Internet website. This is different from the /codes endpoint
+    which returns only the codes that have already been imported into the database.
+
+    The catalog is fetched from the official Gesetze im Internet index:
+    https://www.gesetze-im-internet.de/gii-toc.xml
+
+    The catalog is cached for 24 hours to reduce load on the source website.
+
+    Returns:
+        List of all importable legal codes with their titles and URLs
+
+    Raises:
+        HTTPException: If catalog fetch fails
+    """
+    try:
+        logger.info("Fetching importable legal codes catalog")
+        catalog_service = GesetzteImInternetCatalog()
+        catalog_entries = catalog_service.get_catalog()
+
+        # Convert to response models
+        entries = [
+            LegalCodeCatalogEntryResponse(
+                code=entry.code, title=entry.title, url=entry.url
+            )
+            for entry in catalog_entries
+        ]
+
+        logger.info(f"Found {len(entries)} codes in catalog")
+        return CatalogResponse(count=len(entries), entries=entries)
+
+    except Exception as e:
+        logger.error(f"Error fetching catalog: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error fetching catalog: {str(e)}")
 
 
 @router.get("/gesetze-im-internet/{code}", response_model=LegalTextListResponse)
