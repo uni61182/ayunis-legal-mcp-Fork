@@ -572,4 +572,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-Made with ❤️ for the legal tech community
+Made with ❤️ for the gov tech community
