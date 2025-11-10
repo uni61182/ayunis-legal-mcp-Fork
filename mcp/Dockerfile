@@ -18,7 +18,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # Copy application code
 COPY ./mcp/server ./server
-COPY ./mcp/client_example.py ./client_example.py
+
+# Note: client_example.py is intentionally excluded (not required for server operation)
 
 # Expose port for MCP server
 EXPOSE 8001

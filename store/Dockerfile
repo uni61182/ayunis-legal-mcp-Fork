@@ -20,7 +20,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # Copy application code
 COPY ./store/app ./app
-COPY ./store/tests ./tests
+
+# Note: tests are intentionally excluded via .dockerignore for production images
+# For development with tests, mount ./store/tests as a volume or run tests outside Docker
 
 # Copy alembic for database migrations
 COPY ./store/alembic ./alembic

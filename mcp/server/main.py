@@ -25,7 +25,7 @@ mcp = FastMCP(
 )
 
 # Configuration for the legal texts API
-API_BASE_URL = os.getenv("LEGAL_API_BASE_URL", "legal-mcp-store-api:8000")
+API_BASE_URL = os.getenv("LEGAL_API_BASE_URL", "http://legal-mcp-store-api:8000")
 
 
 class LegalTextResult(BaseModel):
@@ -148,41 +148,6 @@ async def get_legal_section(
     except Exception as e:
         logger.error(f"Error getting legal section: {e}")
         raise RuntimeError(f"Error getting legal section: {str(e)}")
-
-
-@mcp.tool()
-async def import_legal_code(
-    code: str = Field(description="Legal code identifier to import (e.g., 'bgb', 'stgb')"),
-) -> str:
-    """
-    Import a German legal code from Gesetze im Internet.
-
-    Downloads and imports a complete legal code into the database,
-    including generating embeddings for semantic search. This may
-    take several minutes for large codes.
-
-    Args:
-        code: Legal code identifier (bgb=Civil Code, stgb=Criminal Code)
-
-    Returns:
-        Success message with import statistics
-    """
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{API_BASE_URL}/legal-texts/gesetze-im-internet/{code}",
-                timeout=300.0,  # 5 minutes for large imports
-            )
-            response.raise_for_status()
-            data = response.json()
-
-            return f"✓ {data['message']}\nImported {data['texts_imported']} legal texts for code '{data['code']}'"
-    except httpx.HTTPError as e:
-        logger.error(f"HTTP error importing legal code: {e}")
-        raise RuntimeError(f"Failed to import legal code: {str(e)}")
-    except Exception as e:
-        logger.error(f"Error importing legal code: {e}")
-        raise RuntimeError(f"Error importing legal code: {str(e)}")
 
 
 @mcp.tool()

@@ -1,5 +1,10 @@
 # Legal MCP - German Legal Texts Search System
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)](https://fastapi.tiangolo.com/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+
 A comprehensive system for searching and analyzing German legal texts using vector embeddings and semantic search, consisting of:
 
 - **Store API**: FastAPI backend with PostgreSQL, pgvector, and Ollama embeddings
@@ -355,6 +360,43 @@ Once running, access the interactive API documentation:
 - `GET /health` - Health check endpoint
 - `GET /` - API information
 
+## MCP Server
+
+The MCP Server provides tools for AI assistants to interact with the legal text database through the Model Context Protocol.
+
+### Available Tools
+
+The MCP Server exposes the following tools:
+
+- **`search_legal_texts`** - Perform semantic search on legal texts
+  - Parameters: `query`, `code`, `limit` (1-20), `cutoff` (0-2)
+  - Returns: List of matching legal text sections with similarity scores
+
+- **`get_legal_section`** - Retrieve specific legal text sections
+  - Parameters: `code`, `section`, `sub_section` (optional)
+  - Returns: List of legal text sections matching the criteria
+
+- **`import_legal_code`** - Import a complete legal code from Gesetze im Internet
+  - Parameters: `code`
+  - Returns: Success message with import statistics
+
+- **`get_available_codes`** - Get all available legal codes in the database
+  - Returns: List of legal code identifiers
+
+### Using the MCP Server
+
+The MCP Server runs on port 8001 and can be accessed by MCP-compatible clients:
+
+```bash
+# Check MCP server is running
+curl http://localhost:8001/health
+
+# The MCP server automatically connects to the Store API
+# using LEGAL_API_BASE_URL environment variable
+```
+
+For AI assistants, configure the MCP client to connect to `http://localhost:8001` (or the appropriate host/port for your deployment).
+
 ## Legal Text Features
 
 ### Importing Legal Texts
@@ -493,3 +535,41 @@ pytest tests/test_main.py -v
 # Run CLI tests specifically
 pytest tests/cli/ -v
 ```
+
+## Contributing
+
+We welcome contributions from the community! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on:
+
+- How to report bugs
+- How to suggest features
+- How to submit pull requests
+- Development setup instructions
+- Code style guidelines
+
+## Code of Conduct
+
+This project adheres to the Contributor Covenant [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior through the project's reporting mechanisms.
+
+## Security
+
+Security is important to us. If you discover a security vulnerability, please follow our [Security Policy](SECURITY.md) for responsible disclosure. Do not open public issues for security vulnerabilities.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Legal texts sourced from [Gesetze im Internet](https://www.gesetze-im-internet.de/)
+- Built with [FastAPI](https://fastapi.tiangolo.com/), [FastMCP](https://github.com/jlowin/fastmcp), and [Ollama](https://ollama.ai/)
+- Vector similarity search powered by [pgvector](https://github.com/pgvector/pgvector)
+
+## Support
+
+- **Documentation**: Check this README and the `_docs/` directory
+- **Issues**: Open an issue on GitHub for bugs or feature requests
+- **Discussions**: Use GitHub Discussions for questions and community chat
+
+---
+
+Made with ❤️ for the legal tech community

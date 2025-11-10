@@ -3,6 +3,7 @@ Legal texts router - Endpoints for importing and querying German legal texts
 """
 
 import logging
+import re
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, ValidationError
@@ -27,6 +28,44 @@ router = APIRouter(
     tags=["legal-texts"],
     responses={404: {"description": "Not found"}},
 )
+
+# Security: Pattern for validating legal code format to prevent SSRF/injection attacks
+CODE_PATTERN = re.compile(r"^[a-z0-9_-]+$", re.IGNORECASE)
+MAX_CODE_LENGTH = 50
+
+
+def validate_legal_code(code: str) -> str:
+    """
+    Validate legal code format to prevent SSRF and injection attacks
+
+    Args:
+        code: The legal code to validate
+
+    Returns:
+        The validated code in lowercase
+
+    Raises:
+        HTTPException: If the code format is invalid
+    """
+    if not code:
+        raise HTTPException(
+            status_code=400,
+            detail="Legal code cannot be empty"
+        )
+
+    if len(code) > MAX_CODE_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Legal code too long. Maximum {MAX_CODE_LENGTH} characters."
+        )
+
+    if not CODE_PATTERN.match(code):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid legal code format. Code must contain only letters, numbers, hyphens, and underscores."
+        )
+
+    return code.lower()
 
 
 class LegalTextResponse(BaseModel):
@@ -131,6 +170,8 @@ async def import_legal_text(
         HTTPException: If scraping, embedding, or database operations fail
     """
     try:
+        # Security: Validate code format to prevent SSRF/injection attacks
+        book = validate_legal_code(book)
         logger.info(f"Starting import for legal code: {book}")
 
         # Validation: Check if code exists in catalog
@@ -326,6 +367,8 @@ async def get_legal_texts(
             - 500: If database query fails
     """
     try:
+        # Security: Validate code format to prevent SSRF/injection attacks
+        code = validate_legal_code(code)
         logger.info(
             f"Querying legal texts - code: {code}, section: {section}, sub_section: {sub_section}"
         )
@@ -444,6 +487,8 @@ async def semantic_search_legal_texts(
             - 500: If embedding generation or search fails
     """
     try:
+        # Security: Validate code format to prevent SSRF/injection attacks
+        code = validate_legal_code(code)
         logger.info(
             f"Semantic search - code: {code}, query: '{q}', limit: {limit}, cutoff: {cutoff}"
         )
