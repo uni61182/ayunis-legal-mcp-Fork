@@ -6,15 +6,15 @@ services:
     image: pgvector/pgvector:pg16
     container_name: legal-mcp-postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-legal_mcp}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-legal_mcp_password}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_password}
       POSTGRES_DB: ${POSTGRES_DB:-legal_mcp_db}
     ports:
       - "5436:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U legal_mcp -d legal_mcp_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d legal_mcp_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,9 +30,8 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-legal_mcp}:${POSTGRES_PASSWORD:-legal_mcp_password}@${POSTGRES_HOST:-postgres}:5432/${POSTGRES_DB:-legal_mcp_db}
-      - POSTGRES_USER=${POSTGRES_USER:-legal_mcp}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-legal_mcp_password}
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres_password}
       - POSTGRES_DB=${POSTGRES_DB:-legal_mcp_db}
       - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
     ports:
