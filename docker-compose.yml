@@ -1,20 +1,17 @@
-version: "3.8"
-
 services:
   # PostgreSQL with pgvector extension for vector database
   postgres:
     image: pgvector/pgvector:pg16
     container_name: legal-mcp-postgres
     environment:
-      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_password}
-      POSTGRES_DB: ${POSTGRES_DB:-legal_mcp_db}
     ports:
       - "5436:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d legal_mcp_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,10 +27,7 @@ services:
     env_file:
       - .env
     environment:
-      - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres_password}
-      - POSTGRES_DB=${POSTGRES_DB:-legal_mcp_db}
-      - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
     ports:
       - "8000:8000"
     depends_on:

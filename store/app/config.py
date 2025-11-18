@@ -25,9 +25,9 @@ class Settings(BaseSettings):
     # Database settings
     postgres_host: str = Field(default="postgres")
     postgres_port: int = Field(default=5432)
-    postgres_user: str = Field(default="legal_mcp")
-    postgres_password: str = Field(default="legal_mcp_password")
+    postgres_password: str = Field(default="postgres_password")
     postgres_db: str = Field(default="legal_mcp_db")
+    # Note: postgres_user is hard-coded to 'postgres' in database.py
 
     # Ollama settings
     ollama_base_url: str = Field(

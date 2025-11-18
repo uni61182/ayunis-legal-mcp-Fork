@@ -11,20 +11,20 @@ from app.config import get_settings
 
 settings = get_settings()
 
-# URL-encode the username and password to handle special characters
-encoded_user = quote_plus(settings.postgres_user)
+# URL-encode the password to handle special characters
+# Always use 'postgres' as the user (PostgreSQL default superuser)
 encoded_password = quote_plus(settings.postgres_password)
 
 # Build database URLs with properly encoded credentials
 # Sync URL for Alembic migrations (uses psycopg2)
 SYNC_DATABASE_URL = (
-    f"postgresql://{encoded_user}:{encoded_password}"
+    f"postgresql://postgres:{encoded_password}"
     f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
 )
 
 # Async URL for FastAPI application (uses asyncpg)
 ASYNC_DATABASE_URL = (
-    f"postgresql+asyncpg://{encoded_user}:{encoded_password}"
+    f"postgresql+asyncpg://postgres:{encoded_password}"
     f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
 )
 
