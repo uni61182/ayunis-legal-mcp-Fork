@@ -1,0 +1,33 @@
+# Store API dependencies
+fastapi[standard]==0.115.0
+pydantic==2.12.0
+pydantic-settings==2.11.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.20
+pytest==8.4.2
+httpx==0.28.1
+
+# PostgreSQL
+psycopg2-binary==2.9.10
+asyncpg==0.30.0
+sqlalchemy[asyncio]==2.0.43
+pgvector==0.4.1
+greenlet==3.2.4
+alembic==1.16.5
+
+# Vector embeddings
+ollama==0.6.0
+
+# Web scraping for German legal texts
+beautifulsoup4==4.14.2
+requests==2.32.5
+lxml==5.4.0
+lxml-stubs==0.5.1
+
+# MCP Server dependencies
+fastmcp==2.12.4
+
+# CLI dependencies
+typer==0.15.1
+rich==13.9.4
+

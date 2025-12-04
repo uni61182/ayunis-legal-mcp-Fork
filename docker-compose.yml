@@ -1,0 +1,68 @@
+services:
+  # PostgreSQL with pgvector extension for vector database
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: legal-mcp-postgres
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_password}
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - legal-mcp-network
+
+  # Legal Texts Store API (FastAPI)
+  store-api:
+    build:
+      context: .
+      dockerfile: ./store/Dockerfile
+    container_name: legal-mcp-store-api
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres_password}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./store/app:/app/app
+      - ./store/data:/app/data
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - legal-mcp-network
+    restart: unless-stopped
+
+  # MCP Server
+  mcp-server:
+    build:
+      context: .
+      dockerfile: ./mcp/Dockerfile
+    container_name: legal-mcp-server
+    environment:
+      - LEGAL_API_BASE_URL=http://store-api:8000
+    ports:
+      - "8001:8001"
+    depends_on:
+      - store-api
+    volumes:
+      - ./mcp/server:/app/server
+    networks:
+      - legal-mcp-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  legal-mcp-network:
+    driver: bridge

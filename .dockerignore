@@ -1,0 +1,99 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.hypothesis/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.virtualenv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Git
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# Documentation (exclude all except README)
+*.md
+!README.md
+_docs/
+docs/
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+
+# Data
+store/data/*
+!store/data/.gitkeep
+postgres_data/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment (CRITICAL: never include in images)
+.env
+.env.*
+*.env
+!.env.example
+
+# Testing
+tests/
+store/tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+coverage.xml
+nosetests.xml
+pytest.xml
+
+# Logs
+*.log
+logs/
+
+# OS
+Thumbs.db
+.DS_Store
+*.bak
+*.tmp
+
+# CI/CD
+.circleci/
+.travis.yml
+.gitlab-ci.yml
+.github/
+
+# Security
+*.pem
+*.key
+*.crt
+*.cer
+credentials.json
+
