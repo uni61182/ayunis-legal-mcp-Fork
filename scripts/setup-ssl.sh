@@ -1,12 +1,28 @@
 #!/bin/bash
 # ===========================================
 # SSL Setup mit Caddy für MCP Server
+# Funktioniert mit jeder Domain inkl. DuckDNS!
 # ===========================================
 
 set -e
 
 # Deine Domain hier eintragen:
-DOMAIN="${1:-chris611.dns.army}"
+# Beispiele:
+#   - DuckDNS:     ayunis-legal.duckdns.org
+#   - Eigene:      legal.deine-domain.de
+#   - IONOS:       dein-name.ionos.space
+DOMAIN="${1:-}"
+
+if [ -z "$DOMAIN" ]; then
+    echo "Usage: $0 <domain>"
+    echo ""
+    echo "Beispiele:"
+    echo "  $0 ayunis-legal.duckdns.org"
+    echo "  $0 legal.meine-domain.de"
+    echo ""
+    echo "Noch keine Domain? Kostenlos bei https://www.duckdns.org"
+    exit 1
+fi
 
 echo "SSL Setup für Domain: $DOMAIN"
 
