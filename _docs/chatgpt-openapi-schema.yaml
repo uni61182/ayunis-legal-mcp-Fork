@@ -1,0 +1,146 @@
+openapi: 3.1.0
+info:
+  title: Legal MCP Store API
+  description: API für die Suche in deutschen Gesetzestexten
+  version: 1.0.0
+servers:
+  - url: https://YOUR-PUBLIC-URL:8000
+    description: Legal MCP Store API (ersetze mit deiner öffentlichen URL)
+paths:
+  /legal-texts/gesetze-im-internet/codes:
+    get:
+      operationId: getAvailableCodes
+      summary: Liste aller verfügbaren Gesetzesbücher
+      description: Gibt eine Liste aller importierten Gesetzesbücher zurück
+      responses:
+        '200':
+          description: Erfolgreiche Antwort
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  codes:
+                    type: array
+                    items:
+                      type: string
+                    example: ["bgb", "stgb", "gg"]
+  
+  /legal-texts/gesetze-im-internet/{code}:
+    get:
+      operationId: getLegalTexts
+      summary: Gesetzestexte nach Code und Section abrufen
+      description: Ruft spezifische Paragraphen aus einem Gesetzbuch ab
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: "Gesetzbuch-Kürzel (z.B. bgb, stgb, gg)"
+          schema:
+            type: string
+        - name: section
+          in: query
+          required: false
+          description: "Paragraph (z.B. '§ 1' oder '§ 433')"
+          schema:
+            type: string
+        - name: sub_section
+          in: query
+          required: false
+          description: "Absatz (z.B. '1', '2a')"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Erfolgreiche Antwort
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        text:
+                          type: string
+                        code:
+                          type: string
+                        section:
+                          type: string
+                        sub_section:
+                          type: string
+  
+  /legal-texts/gesetze-im-internet/{code}/search:
+    get:
+      operationId: searchLegalTexts
+      summary: Semantische Suche in Gesetzestexten
+      description: Durchsucht Gesetzestexte mit Vektor-Ähnlichkeitssuche
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: "Gesetzbuch-Kürzel (z.B. bgb, stgb)"
+          schema:
+            type: string
+        - name: q
+          in: query
+          required: true
+          description: "Suchanfrage in natürlicher Sprache"
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: "Maximale Anzahl Ergebnisse (1-100)"
+          schema:
+            type: integer
+            default: 10
+        - name: cutoff
+          in: query
+          required: false
+          description: "Ähnlichkeits-Schwellenwert (0-2, niedriger = strenger)"
+          schema:
+            type: number
+            default: 0.7
+      responses:
+        '200':
+          description: Erfolgreiche Antwort
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        text:
+                          type: string
+                        code:
+                          type: string
+                        section:
+                          type: string
+                        sub_section:
+                          type: string
+                        similarity_score:
+                          type: number
+  
+  /health:
+    get:
+      operationId: healthCheck
+      summary: API Health Check
+      description: Prüft ob die API erreichbar ist
+      responses:
+        '200':
+          description: API ist gesund
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"

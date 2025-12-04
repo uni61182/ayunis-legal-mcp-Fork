@@ -83,6 +83,31 @@ class LegalTextRepository:
         await self.session.refresh(legal_text)
         return legal_text
 
+    async def get_existing_hashes(self, code: str) -> Dict[str, str]:
+        """
+        Get existing text hashes for a legal code
+        
+        Args:
+            code: The legal code identifier
+            
+        Returns:
+            Dictionary mapping "section:sub_section" to text_hash
+        """
+        query = select(
+            LegalTextDB.section,
+            LegalTextDB.sub_section,
+            LegalTextDB.text_hash
+        ).filter(LegalTextDB.code == code)
+        
+        result = await self.session.execute(query)
+        rows = result.all()
+        
+        return {
+            f"{row[0]}:{row[1]}": row[2] 
+            for row in rows 
+            if row[2] is not None
+        }
+
     async def add_legal_texts_batch(
         self, legal_texts: List[LegalTextDB]
     ) -> List[LegalTextDB]:
@@ -90,7 +115,7 @@ class LegalTextRepository:
         Add or update multiple legal texts in a batch (upsert)
 
         If a legal text with the same (code, section, sub_section) combination
-        already exists, it will be updated with the new text and embedding.
+        already exists, it will be updated with the new text, embedding and hash.
         Otherwise, a new record will be inserted.
 
         Args:
@@ -109,6 +134,7 @@ class LegalTextRepository:
                 {
                     "text": lt.text,
                     "text_vector": lt.text_vector,  # type: ignore
+                    "text_hash": lt.text_hash,
                     "code": lt.code,
                     "section": lt.section,
                     "sub_section": lt.sub_section,
@@ -118,13 +144,14 @@ class LegalTextRepository:
         # Create insert statement with ON CONFLICT clause
         stmt = insert(LegalTextDB).values(values)
 
-        # On conflict, update the text and text_vector
+        # On conflict, update the text, text_vector and text_hash
         # The constraint name matches what we created in the migration
         upsert_stmt = stmt.on_conflict_do_update(
             constraint="uq_legal_texts_code_section_subsection",
             set_={
                 "text": stmt.excluded.text,
                 "text_vector": stmt.excluded.text_vector,
+                "text_hash": stmt.excluded.text_hash,
             },
         )
 

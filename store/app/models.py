@@ -41,9 +41,10 @@ class LegalTextDB(Base):
     id = Column(Integer, primary_key=True, index=True)
     text = Column(Text, nullable=False)
     text_vector = Column(Vector(2560), nullable=False)  # type: ignore
+    text_hash = Column(String(64), nullable=True, index=True)  # SHA-256 hash for change detection
     code = Column(String(100), nullable=False, index=True)
-    section = Column(String(50), nullable=False, index=True)
-    sub_section = Column(String(50), nullable=False)
+    section = Column(String(255), nullable=False, index=True)
+    sub_section = Column(String(500), nullable=False)
 
 
 class Scraper(ABC):

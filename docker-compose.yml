@@ -29,7 +29,7 @@ services:
     environment:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres_password}
     ports:
-      - "8000:8000"
+      - "8888:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -50,7 +50,7 @@ services:
     environment:
       - LEGAL_API_BASE_URL=http://store-api:8000
     ports:
-      - "8001:8001"
+      - "8889:8889"
     depends_on:
       - store-api
     volumes:

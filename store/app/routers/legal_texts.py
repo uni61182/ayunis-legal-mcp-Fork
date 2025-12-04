@@ -2,6 +2,7 @@
 Legal texts router - Endpoints for importing and querying German legal texts
 """
 
+import hashlib
 import logging
 import re
 from typing import List, Optional
@@ -15,7 +16,7 @@ from app.scrapers import (
 )
 from app.repository import LegalTextRepository, LegalTextFilter
 from app.embedding import EmbeddingService
-from app.models import LegalTextDB
+from app.models import LegalTextDB, LegalText
 from app.dependencies import (
     get_legal_text_repository,
     get_embedding_service_dependency,
@@ -28,6 +29,11 @@ router = APIRouter(
     tags=["legal-texts"],
     responses={404: {"description": "Not found"}},
 )
+
+
+def compute_text_hash(text: str) -> str:
+    """Compute SHA-256 hash of text for change detection"""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 # Security: Pattern for validating legal code format to prevent SSRF/injection attacks
 CODE_PATTERN = re.compile(r"^[a-z0-9_-]+$", re.IGNORECASE)
@@ -117,6 +123,8 @@ class LegalTextImportResponse(BaseModel):
 
     message: str
     texts_imported: int
+    texts_updated: int = 0
+    texts_unchanged: int = 0
     code: str
 
 
@@ -146,25 +154,27 @@ class CatalogResponse(BaseModel):
 @router.post("/gesetze-im-internet/{book}", response_model=LegalTextImportResponse)
 async def import_legal_text(
     book: str,
+    force: bool = Query(False, description="Force re-import even if text hasn't changed"),
     repository: LegalTextRepository = Depends(get_legal_text_repository),
     embedding_service: EmbeddingService = Depends(get_embedding_service_dependency),
 ):
     """
-    Import a legal text from Gesetze im Internet
+    Import a legal text from Gesetze im Internet (smart update)
 
     This endpoint:
     1. Scrapes the legal text XML from gesetze-im-internet.de
-    2. Parses the XML into structured legal text sections
-    3. Generates embeddings for each text section using Ollama
-    4. Stores the texts with their embeddings in the database
+    2. Compares text hashes to detect changes
+    3. Only generates embeddings for new or changed texts
+    4. Stores/updates the texts with their embeddings in the database
 
     Args:
         book: The legal code identifier (e.g., 'bgb', 'stgb')
+        force: If True, re-import all texts even if unchanged (default: False)
         repository: Database repository (injected)
         embedding_service: Embedding service (injected)
 
     Returns:
-        Response with success message and count of imported texts
+        Response with success message and counts of imported/updated/unchanged texts
 
     Raises:
         HTTPException: If scraping, embedding, or database operations fail
@@ -172,7 +182,7 @@ async def import_legal_text(
     try:
         # Security: Validate code format to prevent SSRF/injection attacks
         book = validate_legal_code(book)
-        logger.info(f"Starting import for legal code: {book}")
+        logger.info(f"Starting import for legal code: {book} (force={force})")
 
         # Validation: Check if code exists in catalog
         catalog_service = GesetzteImInternetCatalog()
@@ -201,44 +211,93 @@ async def import_legal_text(
 
         logger.info(f"Scraped {len(legal_texts)} legal text sections")
 
-        # Step 2: Generate embeddings for all texts (batch processing)
-        logger.info("Generating embeddings...")
-        texts_to_embed = [lt.text for lt in legal_texts]
+        # Step 2: Get existing hashes to detect changes
+        existing_hashes = await repository.get_existing_hashes(book)
+        
+        # Step 3: Separate texts into new/changed vs unchanged
+        texts_to_embed: List[LegalText] = []
+        unchanged_texts: List[LegalText] = []
+        
+        for lt in legal_texts:
+            key = f"{lt.section}:{lt.sub_section}"
+            new_hash = compute_text_hash(lt.text)
+            existing_hash = existing_hashes.get(key)
+            
+            if force or existing_hash is None or existing_hash != new_hash:
+                texts_to_embed.append(lt)
+            else:
+                unchanged_texts.append(lt)
+        
+        logger.info(f"Texts to embed: {len(texts_to_embed)}, unchanged: {len(unchanged_texts)}")
+        
+        # Step 4: Generate embeddings only for new/changed texts
+        if texts_to_embed:
+            logger.info("Generating embeddings for changed texts...")
+            try:
+                embeddings = await embedding_service.generate_embeddings(
+                    [lt.text for lt in texts_to_embed]
+                )
+            except Exception as e:
+                logger.error(f"Error generating embeddings: {str(e)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error generating embeddings: {str(e)}. Make sure Ollama is running and the model is available.",
+                )
 
-        try:
-            embeddings = await embedding_service.generate_embeddings(texts_to_embed)
-        except Exception as e:
-            logger.error(f"Error generating embeddings: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error generating embeddings: {str(e)}. Make sure Ollama is running and the model is available.",
-            )
+            logger.info(f"Generated {len(embeddings)} embeddings")
 
-        logger.info(f"Generated {len(embeddings)} embeddings")
+            # Step 5: Create database records with embeddings and hashes
+            # Deduplicate by merging texts with same section+sub_section
+            seen_keys: dict[str, int] = {}
+            legal_text_dbs: List[LegalTextDB] = []
+            
+            for legal_text, embedding in zip(texts_to_embed, embeddings):
+                key = f"{legal_text.section}:{legal_text.sub_section}"
+                
+                if key in seen_keys:
+                    # Merge text with existing entry
+                    idx = seen_keys[key]
+                    existing = legal_text_dbs[idx]
+                    merged_text = existing.text + "\n\n" + legal_text.text
+                    # Recalculate hash for merged text (embedding stays from first)
+                    legal_text_dbs[idx] = LegalTextDB(
+                        text=merged_text,
+                        text_vector=existing.text_vector,
+                        text_hash=compute_text_hash(merged_text),
+                        code=legal_text.code,
+                        section=legal_text.section,
+                        sub_section=legal_text.sub_section,
+                    )
+                    logger.debug(f"Merged duplicate key: {key}")
+                else:
+                    seen_keys[key] = len(legal_text_dbs)
+                    legal_text_db = LegalTextDB(
+                        text=legal_text.text,
+                        text_vector=embedding,
+                        text_hash=compute_text_hash(legal_text.text),
+                        code=legal_text.code,
+                        section=legal_text.section,
+                        sub_section=legal_text.sub_section,
+                    )
+                    legal_text_dbs.append(legal_text_db)
 
-        # Step 3: Create database records with embeddings
-        legal_text_dbs: List[LegalTextDB] = []
-        for legal_text, embedding in zip(legal_texts, embeddings):
-            legal_text_db = LegalTextDB(
-                text=legal_text.text,
-                text_vector=embedding,
-                code=legal_text.code,
-                section=legal_text.section,
-                sub_section=legal_text.sub_section,
-            )
-            legal_text_dbs.append(legal_text_db)
-
-        # Step 4: Save to database in batch
-        logger.info("Saving to database...")
-        await repository.add_legal_texts_batch(legal_text_dbs)
-
+            # Step 6: Save to database in batch
+            logger.info("Saving to database...")
+            await repository.add_legal_texts_batch(legal_text_dbs)
+        
+        # Determine counts
+        new_count = len([lt for lt in texts_to_embed if f"{lt.section}:{lt.sub_section}" not in existing_hashes])
+        updated_count = len(texts_to_embed) - new_count
+        
         logger.info(
-            f"Successfully imported {len(legal_text_dbs)} texts for code: {book}"
+            f"Successfully processed {book}: {new_count} new, {updated_count} updated, {len(unchanged_texts)} unchanged"
         )
 
         return LegalTextImportResponse(
-            message=f"Successfully imported legal texts for {book}",
-            texts_imported=len(legal_text_dbs),
+            message=f"Successfully processed legal texts for {book}",
+            texts_imported=new_count,
+            texts_updated=updated_count,
+            texts_unchanged=len(unchanged_texts),
             code=book,
         )
 
